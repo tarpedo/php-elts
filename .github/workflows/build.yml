@@ -1,0 +1,80 @@
+name: build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sources:
+    name: lint, verify sources
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: shellcheck
+        run: shellcheck bin/* build/apply-series build/apt-upgrade build/check-series build/compile build/cve-tests build/finalize build/prepare-source build/tree-hash tests/smoke tests/compat/run
+      - name: hadolint
+        run: |
+          for file in Dockerfile tests/compat/Dockerfile; do
+            docker run --rm -i -v "$PWD/.hadolint.yaml:/.config/hadolint.yaml:ro" hadolint/hadolint:v2.12.0 <"$file"
+          done
+      - name: actionlint
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7 -no-color
+
+      - name: Vendored sources match what ELTS signs
+        run: |
+          for branch in 7.3 7.4; do
+            . "$branch/elts.env"
+            latest=$(bin/update.sh --latest "$branch")
+            if [ "$latest" = "$DEBIAN_VERSION" ]; then
+              bin/update.sh --verify "$branch"
+            else
+              echo "::notice::$branch: ELTS ships $latest, $DEBIAN_VERSION is vendored; update-check opens a pull request"
+            fi
+          done
+
+  image:
+    name: ${{ matrix.branch }}-${{ matrix.variant }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: ["7.3", "7.4"]
+        variant: [cli, fpm, apache]
+    env:
+      IMAGE: php-elts:${{ matrix.branch }}-${{ matrix.variant }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build, CVE regression tests included
+        run: >-
+          bin/build ${{ matrix.branch }} ${{ matrix.variant }}
+          --load --tag "$IMAGE"
+          --cache-from type=gha,scope=${{ matrix.branch }}-${{ matrix.variant }}
+          --cache-to type=gha,mode=max,scope=${{ matrix.branch }}-${{ matrix.variant }}
+
+      - name: CVE regression test report
+        run: |
+          {
+            echo "### CVE regression tests, $IMAGE"
+            echo '```'
+            docker run --rm "$IMAGE" cat /usr/local/share/php-elts/cve-tests.log
+            echo '```'
+          } >>"$GITHUB_STEP_SUMMARY"
+
+      - name: Drop-in check against the official image
+        run: tests/smoke ${{ matrix.branch }} ${{ matrix.variant }}

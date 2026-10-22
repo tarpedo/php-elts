@@ -1,0 +1,67 @@
+name: update-check
+
+on:
+  schedule:
+    - cron: "41 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  check:
+    name: ${{ matrix.branch }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: ["7.3", "7.4"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Vendor the current ELTS sources
+        id: update
+        run: |
+          bin/update.sh ${{ matrix.branch }}
+          if ! git diff --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
+            . ${{ matrix.branch }}/elts.env
+            echo "version=$DEBIAN_VERSION" >>"$GITHUB_OUTPUT"
+            echo "tag=${DEBIAN_VERSION//[~+]/-}" >>"$GITHUB_OUTPUT"
+          fi
+
+      - name: Open a pull request
+        if: steps.update.outputs.version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.update.outputs.version }}
+          TAG: ${{ steps.update.outputs.tag }}
+        run: |
+          branch=update/$TAG
+          if git ls-remote --exit-code origin "refs/heads/$branch" >/dev/null; then
+            echo "$branch exists already"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add --all ${{ matrix.branch }}
+          git commit -m "${{ matrix.branch }}: php${{ matrix.branch }} $VERSION"
+          git push origin "$branch"
+          {
+            echo "Debian ELTS published \`php${{ matrix.branch }} $VERSION\`; \`bin/update.sh\` verified it against the signed archive."
+            echo
+            echo "New patches:"
+            echo '```diff'
+            git diff HEAD~1 -- ${{ matrix.branch }}/series | grep '^[+-][^+-]' || echo "(none)"
+            echo '```'
+            echo
+            echo "After merging, release it:"
+            echo '```sh'
+            echo "git tag $TAG-r1 && git push origin $TAG-r1"
+            echo '```'
+          } >body.md
+          gh pr create --base main --head "$branch" --title "${{ matrix.branch }}: php${{ matrix.branch }} $VERSION" --body-file body.md
+          # Pull requests opened with GITHUB_TOKEN start no workflows; start the build.
+          gh workflow run build.yml --ref "$branch"

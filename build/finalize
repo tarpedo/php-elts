@@ -1,0 +1,22 @@
+#!/bin/sh
+# Final touches on the image, and a check that it is what the build args say.
+set -eu
+
+expected_version=$PHP_VERSION
+expected_sha256=$PHP_SHA256
+. /usr/local/share/php-elts/elts.env
+
+if [ "$expected_version" != "$PHP_VERSION" ] || [ "$expected_sha256" != "$ORIG_SHA256" ]; then
+	echo "finalize: build args do not match elts.env ($PHP_VERSION, $ORIG_SHA256)" >&2
+	exit 1
+fi
+if [ "$(php -r 'echo PHP_VERSION;')" != "$PHP_VERSION" ]; then
+	echo "finalize: php reports $(php -r 'echo PHP_VERSION;'), expected $PHP_VERSION" >&2
+	exit 1
+fi
+
+# It signed the upstream tarball; /usr/src/php.tar.xz is now the patched tree.
+rm -f /usr/src/php.tar.xz.asc
+
+echo "$PACKAGE $DEBIAN_VERSION" >/etc/php-elts-version
+php -v

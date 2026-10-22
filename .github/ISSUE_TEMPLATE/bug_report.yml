@@ -1,0 +1,23 @@
+name: Bug report
+description: An image behaves differently from the official one, fails to build, or misses a fix
+body:
+  - type: input
+    id: image
+    attributes:
+      label: Image
+      description: The full tag, ideally the immutable one (e.g. 7.4.33-1-deb11u14-r1-fpm)
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens, and what you expected
+      description: If the official php image behaves differently, say how.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: A Dockerfile or the commands to run.
+      render: shell

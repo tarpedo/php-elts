@@ -1,0 +1,19 @@
+#!/bin/sh
+# Apply a patch series to a PHP source tree.
+#
+#   apply-series <source-tree> <patches-dir> <series-file>
+#
+# Every patch must apply exactly: no fuzz, no rejects, nothing already applied.
+set -eu
+
+tree=$1
+patches=$2
+series=$3
+
+while read -r patch _; do
+	case $patch in '' | '#'*) continue ;; esac
+	if ! patch -d "$tree" -p1 --forward --fuzz=0 --no-backup-if-mismatch --quiet <"$patches/$patch"; then
+		echo "apply-series: $patch does not apply cleanly" >&2
+		exit 1
+	fi
+done <"$series"

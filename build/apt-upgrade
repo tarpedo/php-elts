@@ -1,0 +1,18 @@
+#!/bin/sh
+# Add the Debian ELTS archive to apt and install every pending update.
+#
+# The official PHP 7 images stopped being rebuilt at PHP's end of life, so
+# their Debian packages (openssl, glibc, libxml2, curl, ...) are years old.
+# ELTS keeps publishing security updates for the Debian release they use, and
+# the apt source stays in the image so `apt-get install` downstream gets them
+# too.
+set -eu
+
+codename=$(. /etc/os-release && echo "$VERSION_CODENAME")
+echo "deb [signed-by=/usr/share/keyrings/debian-elts-archive.asc] https://deb.freexian.com/extended-lts $codename-lts main" \
+	>/etc/apt/sources.list.d/debian-elts.list
+
+apt-get update
+DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
+	-o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold
+rm -rf /var/lib/apt/lists/*

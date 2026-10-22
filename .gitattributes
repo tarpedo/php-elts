@@ -1,0 +1,9 @@
+* text=auto eol=lf
+*.tar.xz binary
+
+# Written by bin/update.sh: collapsed in diffs, not counted as code.
+7.*/elts.env     linguist-generated
+7.*/series       linguist-generated
+7.*/cve-tests    linguist-generated
+7.*/FIXES.md     linguist-generated
+7.*/elts/**      linguist-generated

@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+# Check that an image is a drop-in replacement for the official one.
+#
+#   tests/smoke <branch> <variant> [image]
+#
+# The image defaults to php-elts:<branch>-<variant>; it is compared with the
+# official image listed in <branch>/base-images.
+set -euo pipefail
+
+root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+
+branch=$1
+variant=$2
+image=${3:-php-elts:$branch-$variant}
+official=$(awk -v v="$variant" '$1 == v { print $2 }' "$root/$branch/base-images")
+# shellcheck source=/dev/null
+. "$root/$branch/elts.env"
+
+failed=0
+check() {
+	local name=$1
+	shift
+	if out=$("$@" 2>&1); then
+		echo "ok    $name"
+	else
+		echo "FAIL  $name"
+		while IFS= read -r line; do echo "      $line"; done <<<"$out"
+		failed=1
+	fi
+}
+
+run() { docker run --rm "$1" sh -c "$2"; }
+
+same() { # <description> <command>: identical output on both images
+	diff <(run "$official" "$2") <(run "$image" "$2")
+}
+
+version() {
+	local reported
+	reported=$(run "$image" 'php -r "echo PHP_VERSION;"; echo " $(cat /etc/php-elts-version)"')
+	[ "$reported" = "$PHP_VERSION $PACKAGE $DEBIAN_VERSION" ] || {
+		echo "image reports '$reported'"
+		return 1
+	}
+}
+
+ini_defaults() { # every directive of the official image keeps its default
+	local dump='php -r "foreach (ini_get_all(null, false) as \$k => \$v) echo \"\$k=\$v\n\";"'
+	local missing
+	missing=$(comm -23 <(run "$official" "$dump" | sort) <(run "$image" "$dump" | sort))
+	[ -z "$missing" ] || {
+		echo "changed or missing:"
+		echo "$missing"
+		return 1
+	}
+}
+
+config() { # entrypoint, command, user, ports, ... are untouched
+	local fmt='{{json .Config.Entrypoint}} {{json .Config.Cmd}} {{.Config.User}} {{.Config.WorkingDir}} {{json .Config.ExposedPorts}} {{.Config.StopSignal}}'
+	docker pull --quiet "$official" >/dev/null
+	diff <(docker image inspect --format "$fmt" "$official") <(docker image inspect --format "$fmt" "$image")
+}
+
+extension_install() { # the downstream workflow: apt sources work, ext builds from the patched tarball
+	run "$image" 'apt-get update -qq && docker-php-ext-install -j"$(nproc)" bcmath >/dev/null && php -m | grep -qx bcmath'
+}
+
+serves_php() {
+	local container out
+	container=$(docker run -d "$image")
+	trap 'docker rm -f "$container" >/dev/null' RETURN
+	case $variant in
+	fpm)
+		out=$(docker exec "$container" sh -c '
+			apt-get update -qq && apt-get install -y -qq libfcgi-bin >/dev/null
+			echo "<?php echo PHP_SAPI, \" \", PHP_VERSION;" >/var/www/html/v.php
+			sleep 1
+			SCRIPT_FILENAME=/var/www/html/v.php REQUEST_METHOD=GET cgi-fcgi -bind -connect 127.0.0.1:9000')
+		;;
+	apache)
+		out=$(docker exec "$container" sh -c '
+			echo "<?php echo PHP_SAPI, \" \", PHP_VERSION;" >/var/www/html/v.php
+			sleep 1
+			curl -fsS http://127.0.0.1/v.php')
+		;;
+	esac
+	grep -q "$PHP_VERSION" <<<"$out" || {
+		echo "$out"
+		return 1
+	}
+}
+
+echo "$image vs $official"
+check "version $PHP_VERSION, $DEBIAN_VERSION" version
+check "same extensions" same extensions 'php -m'
+check "same configure flags" same flags 'php-config --configure-options'
+check "same ini defaults" ini_defaults
+check "same image config" config
+check "docker-php-ext-install" extension_install
+case $variant in
+fpm) check "php-fpm config test" run "$image" 'php-fpm -t' ;;
+apache) check "apache config test" run "$image" 'apache2ctl -t' ;;
+esac
+if [ "$variant" != cli ]; then
+	check "serves a PHP page" serves_php
+fi
+exit "$failed"

@@ -1,0 +1,6 @@
+# Sourced files (elts.env) are generated or live inside the image.
+disable=SC1091
+# Single-quoted scripts for `sh -c` and `docker run` are meant to expand later.
+disable=SC2016
+# Check functions in tests/smoke are called indirectly.
+disable=SC2317

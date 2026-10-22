@@ -1,0 +1,24 @@
+#!/bin/sh
+# Hash a source tree: every regular file by content, every symlink by target.
+#
+#   tree-hash <dir>         print one SHA-256 for the whole tree
+#   tree-hash -l <dir>      print the per-file listing that hash is taken over
+set -eu
+
+list=
+if [ "$1" = -l ]; then
+	list=1
+	shift
+fi
+cd "$1"
+
+listing() {
+	find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum
+	find . -type l -print0 | LC_ALL=C sort -z | xargs -0 -r -n1 sh -c 'echo "symlink  $1 -> $(readlink "$1")"' _
+}
+
+if [ -n "$list" ]; then
+	listing
+else
+	listing | sha256sum | cut -d' ' -f1
+fi

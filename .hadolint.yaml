@@ -1,0 +1,8 @@
+ignored:
+  # FROM ${BASE_IMAGE}: the base is pinned by digest in <branch>/base-images.
+  - DL3006
+  # Packages come from a frozen Debian release plus its security updates;
+  # pinning versions would only block those updates.
+  - DL3008
+  # `. /etc/os-release` inside RUN.
+  - SC1091

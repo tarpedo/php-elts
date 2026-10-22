@@ -1,0 +1,24 @@
+#!/bin/sh
+# Check that our series is exactly the tail of the Debian series.
+#
+#   check-series <debian-series-file> <our-series-file>
+#
+# Our series starts at the first security fix (see <branch>/series-start);
+# everything after that point in Debian's series must be applied, in order.
+set -eu
+
+debian=$1
+ours=$2
+
+first=$(head -n1 "$ours")
+tail=$(awk -v first="$first" '/^#/ || !NF { next } $1 == first { on = 1 } on { print $1 }' "$debian")
+
+if [ -z "$tail" ]; then
+	echo "check-series: $first is not in the Debian series" >&2
+	exit 1
+fi
+if [ "$tail" != "$(cat "$ours")" ]; then
+	echo "check-series: series differs from the Debian series starting at $first:" >&2
+	printf '%s\n' "$tail" | diff -u "$ours" - >&2 || :
+	exit 1
+fi

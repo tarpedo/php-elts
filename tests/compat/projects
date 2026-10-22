@@ -1,0 +1,12 @@
+# Real-world test suites that tests/compat/run executes on the official image
+# and on ours. Latest releases that still support PHP 7.3.
+#
+# <name>          <git repository>                                  <tag>      [extra composer dev packages]
+laravel           https://github.com/laravel/framework.git          v8.83.29
+carbon            https://github.com/CarbonPHP/carbon.git           2.73.0
+php-parser        https://github.com/nikic/PHP-Parser.git           v4.19.5
+http-foundation   https://github.com/symfony/http-foundation.git    v5.4.54    phpunit/phpunit:^9.6 symfony/phpunit-bridge:^5.4
+dbal              https://github.com/doctrine/dbal.git              3.3.8
+twig              https://github.com/twigphp/Twig.git               v3.11.3    phpunit/phpunit:^9.6 symfony/phpunit-bridge:^5.4
+commonmark        https://github.com/thephpleague/commonmark.git    1.6.7
+monolog           https://github.com/Seldaek/monolog.git            2.11.1

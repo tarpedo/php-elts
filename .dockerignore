@@ -1,0 +1,6 @@
+*
+!build/
+!keys/
+!tests/cve-tests-skip
+!tests/cve-tests-exclude
+!7.*

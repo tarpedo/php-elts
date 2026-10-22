@@ -1,0 +1,3 @@
+# First patch of the Debian series we apply: everything before it adapts PHP
+# to the Debian layout, everything from it on is a security or bug fix.
+0048-Fix-81740-PDO-quote-may-return-unquoted-string.patch

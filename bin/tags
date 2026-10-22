@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Print the registry tags of one image of a release, one per line.
+#
+#   bin/tags <branch> <variant> <release>
+#
+# For release 7.4.33-1-deb11u14-r2 and variant fpm:
+#
+#   7.4.33-1-deb11u14-r2-fpm    this build; never moves
+#   7.4.33-1-deb11u14-fpm       the latest build of Debian revision 7.4.33-1+deb11u14
+#   7.4.33-fpm  7.4-fpm         the latest build, named like the official images
+#   7.4.33-fpm-bullseye  7.4-fpm-bullseye
+#
+# The cli variant also gets every tag without "-cli", as php:7.4 is the cli.
+set -euo pipefail
+
+root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+[ $# -eq 3 ] || {
+	echo "usage: $0 <branch> <variant> <release>" >&2
+	exit 1
+}
+branch=$1
+variant=$2
+release=$3
+
+# shellcheck source=/dev/null
+. "$root/$branch/elts.env"
+# php:7.4.33-fpm-bullseye@sha256:... -> bullseye
+distro=$(awk -v v="$variant" '$1 == v { print $2 }' "$root/$branch/base-images" | sed 's/@.*//; s/.*-//')
+
+names=("$release" "${release%-r*}" "$PHP_VERSION" "$branch" "$PHP_VERSION-$distro" "$branch-$distro")
+for name in "${names[@]}"; do
+	case $name in
+	*-"$distro") echo "${name%-"$distro"}-$variant-$distro" ;;
+	*) echo "$name-$variant" ;;
+	esac
+	if [ "$variant" = cli ]; then
+		echo "$name"
+	fi
+done

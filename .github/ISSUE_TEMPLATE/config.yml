@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security problem in the images
+    url: https://github.com/tarpedo/php-elts/security/advisories/new
+    about: Report it privately; see SECURITY.md.

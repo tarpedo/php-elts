@@ -1,0 +1,52 @@
+#!/bin/sh
+# Assemble the patched PHP source tree in /usr/src/php.
+#
+#   prepare-source <branch-dir>
+#
+# Re-checks offline what bin/update.sh verified online: the vendored Debian
+# files and the downloaded release tarball against their pinned SHA-256, the
+# series against Debian's, and the patched tree against its pinned hash.
+set -eu
+
+here=$(cd "$(dirname "$0")" && pwd)
+meta=$(cd "$1" && pwd)
+. "$meta/elts.env"
+
+work=$(mktemp -d)
+cd "$work"
+
+cp "$meta/elts/$DSC" "$meta/elts/$DEBIAN_TAR" .
+echo "$DSC_SHA256  $DSC" | sha256sum -c -
+echo "$DEBIAN_TAR_SHA256  $DEBIAN_TAR" | sha256sum -c -
+
+# Debian's orig tarball is byte-identical to the php.net release tarball
+# (bin/update.sh checks that), so either URL yields the pinned bytes. php.net
+# has a CDN; the ELTS archive is a single server, so it is only the fallback.
+curl -fsSL --retry 3 -o "$ORIG" "https://www.php.net/distributions/php-$PHP_VERSION.tar.xz" ||
+	curl -fsSL --retry 3 -o "$ORIG" "$ORIG_URL"
+echo "$ORIG_SHA256  $ORIG" | sha256sum -c -
+
+tar -xJf "$DEBIAN_TAR"
+"$here/check-series" debian/patches/series "$meta/series"
+
+src=/usr/src/php
+rm -rf "$src"
+mkdir -p "$src"
+tar -xJf "$ORIG" -C "$src" --strip-components=1
+"$here/apply-series" "$src" debian/patches "$meta/series"
+
+hash=$("$here/tree-hash" "$src")
+if [ "$hash" != "$TREE_SHA256" ]; then
+	echo "prepare-source: patched tree hashes to $hash, expected $TREE_SHA256" >&2
+	exit 1
+fi
+"$here/tree-hash" -l "$src" >/usr/src/php.files
+
+# A patch to the build system needs a fresh configure script. (File times
+# cannot tell: in the release tarball some .m4 files are newer than configure.)
+if sed 's/^/debian\/patches\//' "$meta/series" | xargs cat | grep -qE '^\+\+\+ [^ ]*(\.m4|configure\.ac)\b'; then
+	(cd "$src" && ./buildconf --force)
+fi
+
+cd /
+rm -rf "$work"

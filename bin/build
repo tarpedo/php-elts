@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Build one image.
+#
+#   bin/build <branch> <variant> [docker buildx build options...]
+#
+# Without options the image is loaded into Docker as php-elts:<branch>-<variant>.
+# MAKE_JOBS limits compiler parallelism (default: all CPUs of the builder);
+# RELEASE names the release the image belongs to (default: dev).
+set -euo pipefail
+
+root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+
+[ $# -ge 2 ] || {
+	echo "usage: $0 <branch> <variant> [docker buildx build options...]" >&2
+	exit 1
+}
+branch=$1
+variant=$2
+shift 2
+
+# shellcheck source=/dev/null
+. "$root/$branch/elts.env"
+base=$(awk -v v="$variant" '$1 == v { print $2 }' "$root/$branch/base-images")
+[ -n "$base" ] || {
+	echo "build: no $variant base image in $branch/base-images" >&2
+	exit 1
+}
+
+if [ $# -eq 0 ]; then
+	set -- --load --tag "php-elts:$branch-$variant"
+fi
+
+exec docker buildx build \
+	--build-arg BASE_IMAGE="$base" \
+	--build-arg BRANCH="$branch" \
+	--build-arg VARIANT="$variant" \
+	--build-arg PHP_VERSION="$PHP_VERSION" \
+	--build-arg PHP_SHA256="$ORIG_SHA256" \
+	--build-arg DEBIAN_VERSION="$DEBIAN_VERSION" \
+	--build-arg MAKE_JOBS="${MAKE_JOBS:-}" \
+	--build-arg RELEASE="${RELEASE:-dev}" \
+	"$@" "$root"

@@ -1,0 +1,3 @@
+# First patch of the Debian series we apply: everything before it adapts PHP
+# to the Debian layout, everything from it on is a security or bug fix.
+0054-Fix-bug-81026-PHP-FPM-oob-R-W-in-root-process-leadin.patch

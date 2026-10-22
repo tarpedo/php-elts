@@ -1,0 +1,164 @@
+name: release
+
+# Pushing a tag like 7.4.33-1-deb11u14-r1 publishes that branch's images:
+# the Debian ELTS revision of 7.4/elts.env, build 1. To rebuild the same
+# revision later (Debian package updates, a fix to the build), tag -r2, ...
+on:
+  push:
+    tags: ["7.*-r*"]
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    outputs:
+      branch: ${{ steps.check.outputs.branch }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: The tag names the vendored Debian revision
+        id: check
+        run: |
+          branch=$(cut -d. -f1-2 <<<"$GITHUB_REF_NAME")
+          . "$branch/elts.env"
+          version=${DEBIAN_VERSION//[~+]/-}
+          if ! [[ $GITHUB_REF_NAME =~ ^"$version"-r[0-9]+$ ]]; then
+            echo "::error::$branch/elts.env is at $DEBIAN_VERSION; tag it $version-r<N>"
+            exit 1
+          fi
+          echo "branch=$branch" >>"$GITHUB_OUTPUT"
+
+  build:
+    name: build ${{ matrix.variant }} ${{ matrix.platform.arch }}
+    needs: check
+    runs-on: ${{ matrix.platform.runner }}
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        variant: [cli, fpm, apache]
+        platform:
+          - { arch: amd64, runner: ubuntu-24.04 }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # No build cache, so that the image gets the current Debian packages.
+      - name: Build, test and push by digest
+        env:
+          RELEASE: ${{ github.ref_name }}
+        run: |
+          bin/build ${{ needs.check.outputs.branch }} ${{ matrix.variant }} \
+            --platform linux/${{ matrix.platform.arch }} \
+            --output type=image,name="$IMAGE",push-by-digest=true,name-canonical=true,push=true \
+            --metadata-file metadata.json
+          digest=$(jq -r '."containerimage.digest"' metadata.json)
+          mkdir digests
+          touch "digests/${digest#sha256:}"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: digests-${{ matrix.variant }}-${{ matrix.platform.arch }}
+          path: digests/*
+          retention-days: 1
+
+  publish:
+    name: publish ${{ matrix.variant }}
+    needs: [check, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    strategy:
+      matrix:
+        variant: [cli, fpm, apache]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: digests-${{ matrix.variant }}-*
+          path: digests
+          merge-multiple: true
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Combine the platforms and tag
+        id: publish
+        run: |
+          args=()
+          while read -r tag; do args+=(--tag "$IMAGE:$tag"); done \
+            < <(bin/tags ${{ needs.check.outputs.branch }} ${{ matrix.variant }} "$GITHUB_REF_NAME")
+          for digest in digests/*; do args+=("$IMAGE@sha256:${digest#digests/}"); done
+          docker buildx imagetools create "${args[@]}"
+          image=$IMAGE:$GITHUB_REF_NAME-${{ matrix.variant }}
+          echo "digest=$(docker buildx imagetools inspect "$image" --format '{{json .Manifest}}' | jq -r .digest)" >>"$GITHUB_OUTPUT"
+          echo "- \`$image\`" >>"$GITHUB_STEP_SUMMARY"
+
+      # Ties the image to this repository, commit and workflow run:
+      # gh attestation verify oci://<image> --repo tarpedo/php-elts
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.publish.outputs.digest }}
+          push-to-registry: true
+
+  github-release:
+    needs: [check, publish]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Describe the release on GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ needs.check.outputs.branch }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          . "$BRANCH/elts.env"
+          {
+            echo "PHP $PHP_VERSION with the security fixes of Debian ELTS \`$PACKAGE $DEBIAN_VERSION\`:"
+            echo "$(wc -l <"$BRANCH/series") patches, the CVEs they fix are in [$BRANCH/FIXES.md]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/$GITHUB_REF_NAME/$BRANCH/FIXES.md)."
+            echo
+            echo "Images for linux/amd64 and linux/arm64:"
+            echo
+            for variant in cli fpm apache; do
+              echo "- \`$IMAGE:$GITHUB_REF_NAME-$variant\`, also \`$IMAGE:$BRANCH-$variant\`"
+            done
+            echo
+            echo "The CVE regression test report of every image is in its build log ($RUN_URL)"
+            echo "and inside the image at \`/usr/local/share/php-elts/cve-tests.log\`. Verify an image's provenance:"
+            echo
+            echo "\`\`\`sh"
+            echo "gh attestation verify oci://$IMAGE:$GITHUB_REF_NAME-fpm --repo $GITHUB_REPOSITORY"
+            echo "\`\`\`"
+          } >notes.md
+          # Only the newest PHP branch is marked as the latest release.
+          latest=false
+          if [ "$BRANCH/" = "$(printf '%s\n' 7.*/ | sort -V | tail -n1)" ]; then latest=true; fi
+          gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --notes-file notes.md --latest="$latest"

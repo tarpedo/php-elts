@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# Run a project's test suite on a reference image and a candidate image and
+# compare the results test by test.
+#
+#   tests/compat/run <project> <reference-image> <candidate-image>
+#
+# <project> is a name from tests/compat/projects. Dependencies are resolved
+# once and shared by both runs, so the image is the only difference. Fails if
+# a test that passes on the reference does not pass on the candidate.
+# JOBS limits the parallelism of extension builds (default: all CPUs).
+set -euo pipefail
+
+here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+root=$(cd "$here/../.." && pwd)
+
+[ $# -eq 3 ] || {
+	echo "usage: $0 <project> <reference-image> <candidate-image>" >&2
+	exit 1
+}
+project=$1
+# shellcheck disable=SC2034 # read as ${!side}
+reference=$2
+# shellcheck disable=SC2034
+candidate=$3
+
+read -r _ repository tag extra < <(awk -v p="$project" '$1 == p' "$here/projects") || {
+	echo "compat: unknown project $project" >&2
+	exit 1
+}
+
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+user=$(id -u):$(id -g)
+
+echo "::group::$project $tag: app images"
+for side in reference candidate; do
+	docker build --quiet --tag "php-elts-compat:$side" \
+		--build-arg IMAGE="${!side}" --build-arg JOBS="${JOBS:-}" \
+		--file "$here/Dockerfile" "$root" >/dev/null
+done
+php_version=$(docker run --rm php-elts-compat:reference php -r 'echo PHP_VERSION;')
+echo "::endgroup::"
+
+echo "::group::$project $tag: dependencies (PHP $php_version)"
+git clone --quiet --depth 1 --branch "$tag" "$repository" "$work/src" 2>/dev/null
+# shellcheck disable=SC2086 # $extra is a list of packages
+docker run --rm --user "$user" -e HOME=/tmp -e COMPOSER_NO_INTERACTION=1 \
+	-v "$work/src:/app" -w /app php-elts-compat:reference sh -euc '
+		curl -fsSL -o /tmp/composer https://getcomposer.org/download/2.2.30/composer.phar
+		echo "8c2b4478b64f8f7cdf1574838fdb0033b29049ca821dad452db7a3dcfcdbffc2  /tmp/composer" | sha256sum -c --quiet -
+		if [ $# -gt 0 ]; then php /tmp/composer require --dev --no-update "$@"; fi
+		php /tmp/composer update --quiet --prefer-dist --no-progress --ignore-platform-req="ext-*"
+	' composer $extra
+echo "::endgroup::"
+
+for side in reference candidate; do
+	echo "::group::$project $tag: tests on $side (${!side})"
+	docker run --rm --user "$user" -e HOME=/tmp -v "$work/src:/app" -w /app \
+		"php-elts-compat:$side" \
+		php -d memory_limit=-1 vendor/bin/phpunit --log-junit "/app/.junit-$side.xml" >"$work/$side.log" 2>&1 || :
+	tail -n 3 "$work/$side.log"
+	echo "::endgroup::"
+done
+
+python3 "$here/compare.py" "$project" "$work/src/.junit-reference.xml" "$work/src/.junit-candidate.xml"

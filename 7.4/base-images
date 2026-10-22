@@ -1,0 +1,5 @@
+# Official images this branch replaces PHP in. They are frozen upstream (no
+# rebuilds since PHP 7.4 went EOL), so they are pinned by digest.
+cli     php:7.4.33-cli-bullseye@sha256:620a6b9f4d4feef2210026172570465e9d0c1de79766418d3affd09190a7fda5
+fpm     php:7.4.33-fpm-bullseye@sha256:3ac7c8c74b2b047c7cb273469d74fc0d59b857aa44043e6ea6a0084372811d5b
+apache  php:7.4.33-apache-bullseye@sha256:c9d7e608f73832673479770d66aacc8100011ec751d1905ff63fae3fe2e0ca6d
