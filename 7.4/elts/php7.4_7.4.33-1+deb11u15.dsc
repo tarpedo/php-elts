@@ -5,7 +5,7 @@ Format: 3.0 (quilt)
 Source: php7.4
 Binary: libapache2-mod-php7.4, libphp7.4-embed, php7.4, php7.4-cgi, php7.4-cli, php7.4-dev, php7.4-fpm, php7.4-phpdbg, php7.4-xsl, php7.4-bcmath, php7.4-bz2, php7.4-common, php7.4-curl, php7.4-dba, php7.4-enchant, php7.4-gd, php7.4-gmp, php7.4-imap, php7.4-interbase, php7.4-intl, php7.4-json, php7.4-ldap, php7.4-mbstring, php7.4-mysql, php7.4-odbc, php7.4-opcache, php7.4-pgsql, php7.4-pspell, php7.4-readline, php7.4-snmp, php7.4-soap, php7.4-sqlite3, php7.4-sybase, php7.4-tidy, php7.4-xml, php7.4-xmlrpc, php7.4-zip
 Architecture: any all
-Version: 7.4.33-1+deb11u14
+Version: 7.4.33-1+deb11u15
 Maintainer: Debian PHP Maintainers <team+pkg-php@tracker.debian.org>
 Uploaders: Ondřej Surý <ondrej@debian.org>, Lior Kaplan <kaplan@debian.org>
 Homepage: http://www.php.net/
@@ -57,20 +57,20 @@ Package-List:
 Checksums-Sha1:
  4d3152b2339332b4eef2c12931931d4a1245fdab 10420144 php7.4_7.4.33.orig.tar.xz
  1701962351f13c1af1f29bde45eb9515747bc4ee 833 php7.4_7.4.33.orig.tar.xz.asc
- 74c5b26f26bb01606b57780cb479c9ceeb0a7dc5 183960 php7.4_7.4.33-1+deb11u14.debian.tar.xz
+ 07202b27f7235cce1a1db56d8f28027b82c05dbc 195440 php7.4_7.4.33-1+deb11u15.debian.tar.xz
 Checksums-Sha256:
  924846abf93bc613815c55dd3f5809377813ac62a9ec4eb3778675b82a27b927 10420144 php7.4_7.4.33.orig.tar.xz
  569a01c7c605a4571fdf7dfadfff4215cc4a63ea5d474c7ec92bd7b4fecfffcb 833 php7.4_7.4.33.orig.tar.xz.asc
- bf401d73b36e6ff84d4d597baa1448ddf5ecd0ec208fc0ce2b6ffdc7108410d8 183960 php7.4_7.4.33-1+deb11u14.debian.tar.xz
+ ce38c3bfe543fd554c468eec10287dc07df45f7e672a7af6f5ae3fcab1333e99 195440 php7.4_7.4.33-1+deb11u15.debian.tar.xz
 Files:
  f098632163cd47f2c1ffe2bdc6ef1ff2 10420144 php7.4_7.4.33.orig.tar.xz
  306dca821388f20fa55324960d82f427 833 php7.4_7.4.33.orig.tar.xz.asc
- c509de21286220ac1c5016defc9e8a74 183960 php7.4_7.4.33-1+deb11u14.debian.tar.xz
+ ae810cec6d1a2144ede03b9066107a2c 195440 php7.4_7.4.33-1+deb11u15.debian.tar.xz
 
 -----BEGIN PGP SIGNATURE-----
 
-iHUEARYKAB0WIQTDn2k/+iU7r3lg2PwwAgM/xkoPVwUCatkkYgAKCRAwAgM/xkoP
-V2glAQDd95ech9XGY6qTaOp4PoP9WT+kUp4QvE7SKonvD0ZIrQD9ETPpMscQ/KHZ
-7jrvzxUpGLNSv8VczRBRKUoXOzHGhAg=
-=j6I+
+iHUEARYKAB0WIQTDn2k/+iU7r3lg2PwwAgM/xkoPVwUCav8ECgAKCRAwAgM/xkoP
+V87qAQCW3LI6J8OodCSuQSsnlklhjQymD3hZPU7RICRrISGveAD/QxlRmFqNdWzn
+BzWrUFJhzzizQi33P+Yxhhf2pXPOfwg=
+=NKHz
 -----END PGP SIGNATURE-----
