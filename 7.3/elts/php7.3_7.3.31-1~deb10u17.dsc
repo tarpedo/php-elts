@@ -5,7 +5,7 @@ Format: 3.0 (quilt)
 Source: php7.3
 Binary: libapache2-mod-php7.3, libphp7.3-embed, php7.3, php7.3-cgi, php7.3-cli, php7.3-dev, php7.3-fpm, php7.3-phpdbg, php7.3-xsl, php7.3-bcmath, php7.3-bz2, php7.3-common, php7.3-curl, php7.3-dba, php7.3-enchant, php7.3-gd, php7.3-gmp, php7.3-imap, php7.3-interbase, php7.3-intl, php7.3-json, php7.3-ldap, php7.3-mbstring, php7.3-mysql, php7.3-odbc, php7.3-opcache, php7.3-pgsql, php7.3-pspell, php7.3-readline, php7.3-recode, php7.3-snmp, php7.3-soap, php7.3-sqlite3, php7.3-sybase, php7.3-tidy, php7.3-xml, php7.3-xmlrpc, php7.3-zip
 Architecture: any all
-Version: 7.3.31-1~deb10u16
+Version: 7.3.31-1~deb10u17
 Maintainer: Debian PHP Maintainers <team+pkg-php@tracker.debian.org>
 Uploaders: Ondřej Surý <ondrej@debian.org>, Lior Kaplan <kaplan@debian.org>
 Homepage: http://www.php.net/
@@ -58,20 +58,20 @@ Package-List:
 Checksums-Sha1:
  ab51270c59e0b7b71d832c783118808cd318ed11 12142912 php7.3_7.3.31.orig.tar.xz
  450b762bc87c50187ab7f5f7dd16bfbb8258b8b5 850 php7.3_7.3.31.orig.tar.xz.asc
- 56c41b431c742a719e85e08558d6fc7bbefaf50d 189024 php7.3_7.3.31-1~deb10u16.debian.tar.xz
+ 87ec78c384770adcce6b719b6558d8b259c37beb 200288 php7.3_7.3.31-1~deb10u17.debian.tar.xz
 Checksums-Sha256:
  d1aa8f44595d01ac061ff340354d95e146d6152f70e799b44d6b8654fb45cbcc 12142912 php7.3_7.3.31.orig.tar.xz
  320a207f7746a637ea68f3302ee81327ea7d8ff1bbaa525809590020f4253ff2 850 php7.3_7.3.31.orig.tar.xz.asc
- 1eedbd1095e7be93d310c2cbfd13acbcf521b2433ef0ddb5e40abd2dffa633bb 189024 php7.3_7.3.31-1~deb10u16.debian.tar.xz
+ c001ddaa12d84f651a22ad4890f81b956f56cdab34242d4d7388980b284b33c4 200288 php7.3_7.3.31-1~deb10u17.debian.tar.xz
 Files:
  16e5a72f33e44895d9f9e7f88a82be18 12142912 php7.3_7.3.31.orig.tar.xz
  1f2e0333231cb499870c799dda2f26b6 850 php7.3_7.3.31.orig.tar.xz.asc
- b666ce8e814b9ff915aced806b861621 189024 php7.3_7.3.31-1~deb10u16.debian.tar.xz
+ 5f78f4a2474cc6c9ee379ef4c3353c41 200288 php7.3_7.3.31-1~deb10u17.debian.tar.xz
 
 -----BEGIN PGP SIGNATURE-----
 
-iHUEARYKAB0WIQTDn2k/+iU7r3lg2PwwAgM/xkoPVwUCatkmzQAKCRAwAgM/xkoP
-VwhyAP0SYQ9Ak6jiJQb4sJaTliO9NMzR9S965E1fO/4g5M8dQgEA6Nmc2j0V82hy
-iMhzZKkISU46C6GXX9yHkunOkqNR1AY=
-=AfAb
+iHUEARYKAB0WIQTDn2k/+iU7r3lg2PwwAgM/xkoPVwUCav8EogAKCRAwAgM/xkoP
+V1mJAPkBNRc6XCZxC5ecLHj3XYaL91PL0ga0Qzgws93bT3joyAD+NJf/M/EckJsF
+Xo0R1duC3NDbxPV7HDMjFL/Xnx7hhQU=
+=Xewo
 -----END PGP SIGNATURE-----
